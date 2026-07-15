@@ -19,7 +19,23 @@ from typing import Optional
 import config
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import PromptAgentDefinition, ComputerUsePreviewTool
-from azure.identity import DefaultAzureCredential
+from azure.identity import AzureCliCredential, DefaultAzureCredential
+
+
+def _get_credential():
+    """Return an Azure credential.
+
+    Prefer the Azure CLI credential (works after `az login`) because
+    DefaultAzureCredential can fail to invoke the CLI as a subprocess on
+    some Windows/venv setups. Fall back to DefaultAzureCredential otherwise.
+    """
+    try:
+        cred = AzureCliCredential()
+        # Validate that the CLI login actually works.
+        cred.get_token("https://cognitiveservices.azure.com/.default")
+        return cred
+    except Exception:
+        return DefaultAzureCredential()
 
 # PIL for image compression
 try:
@@ -142,7 +158,7 @@ def run_computer_use_task(
     # Initialize the project client
     project = AIProjectClient(
         endpoint=config.PROJECT_ENDPOINT,
-        credential=DefaultAzureCredential(),
+        credential=_get_credential(),
     )
 
     # Get environment type (windows, mac, linux, browser)
