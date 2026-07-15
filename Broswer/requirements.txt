@@ -1,0 +1,6 @@
+azure-ai-agents>=1.2.0b2
+azure-ai-projects
+azure-identity
+python-dotenv
+playwright
+Pillow

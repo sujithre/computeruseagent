@@ -1,0 +1,16 @@
+# Azure AI Foundry Browser & Computer Use API
+azure-ai-agents>=1.2.0b2
+azure-ai-projects
+azure-identity
+python-dotenv
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# Playwright (included in Docker image, but listed for completeness)
+playwright>=1.40.0
+
+# Azure Blob Storage for screenshot storage
+azure-storage-blob>=12.0.0

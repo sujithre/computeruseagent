@@ -1,0 +1,345 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - text: We use cookies on this site to improve your browsing experience, analyze individualized usage and website traffic, tailor content to your preferences, and make your interactions with our website more meaningful. To learn more about the cookies we use and how you can change your preferences, please read our
+      - link "Cookie Policy" [ref=e7] [cursor=pointer]:
+        - /url: //www.servicenow.com/cookie-policy.html
+      - text: and visit our
+      - link "Cookie Preference Manager" [ref=e8] [cursor=pointer]
+      - text: . By clicking “Accept and Proceed,” closing this banner or continuing to browse this site, you consent to the use of cookies.
+    - button "Accept and Proceed" [ref=e10] [cursor=pointer]
+  - generic [ref=e12]:
+    - banner [ref=e60]:
+      - generic [ref=e62]:
+        - generic [ref=e64]: We're experiencing high demand on PDI requests. Please expect a delay to get your request fulfilled.
+        - button [ref=e66] [cursor=pointer]:
+          - img [ref=e68]
+      - generic [ref=e70]:
+        - banner [ref=e72]:
+          - navigation "Primary Navigation" [ref=e73]:
+            - generic [ref=e74]:
+              - link "ServiceNow" [ref=e76] [cursor=pointer]:
+                - /url: https://www.servicenow.com
+                - img "ServiceNow" [ref=e78]
+              - generic:
+                - menubar "Primary Menu":
+                  - button "MyNow":
+                    - generic: MyNow
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Products":
+                    - generic: Products
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Industries":
+                    - generic: Industries
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Learning":
+                    - generic: Learning
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Support":
+                    - generic: Support
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Partners":
+                    - generic: Partners
+                    - generic:
+                      - generic:
+                        - img
+                  - button "Company":
+                    - generic: Company
+                    - generic:
+                      - generic:
+                        - img
+                - generic:
+                  - generic:
+                    - contentinfo "contact information":
+                      - list:
+                        - listitem:
+                          - generic: Sales
+                          - link "Sales":
+                            - /url: tel:18448631987
+                            - generic: +1 (844) 863-1987
+                        - listitem:
+                          - link "View a Demo":
+                            - /url: https://www.servicenow.com/lpdem/demonow-all.html
+                            - generic: View a Demo
+            - generic [ref=e79]:
+              - menubar "Utility Menu" [ref=e80]:
+                - menuitem "Search" [ref=e81] [cursor=pointer]:
+                  - img [ref=e83]
+                - menuitem "Choose language" [ref=e85] [cursor=pointer]:
+                  - img [ref=e87]
+                - menuitem "User Profile" [ref=e89] [cursor=pointer]:
+                  - generic [ref=e90]: S
+              - button "Open navigation menu" [ref=e91] [cursor=pointer]:
+                - img [ref=e93]
+          - navigation "Secondary Navigation" [ref=e95]:
+            - generic [ref=e97]:
+              - link "Developer Portal" [ref=e99] [cursor=pointer]:
+                - /url: dev.do#!/
+                - img "Developer Portal" [ref=e101]
+              - button "Expand the secondary navigation menu" [ref=e102] [cursor=pointer]:
+                - img [ref=e104]
+        - banner [ref=e106]
+    - main [ref=e13]:
+      - generic [ref=e108]:
+        - generic [ref=e111]:
+          - generic [ref=e112]: Build apps on Claude Code, Kiro, Cursor, and more - watch the Build Agent skills & SDK video series.
+          - button "Watch now" [ref=e114] [cursor=pointer]:
+            - generic [ref=e115]:
+              - img [ref=e117]
+              - generic [ref=e120]: Watch now
+        - generic [ref=e121]:
+          - generic [ref=e123]:
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - generic [ref=e127]: Unleash your vision with Build Agent
+                - generic [ref=e128]:
+                  - generic [ref=e129]:
+                    - img [ref=e131]
+                    - generic [ref=e133]: Built-in governance
+                  - generic [ref=e134]:
+                    - img [ref=e135]
+                    - generic [ref=e139]: No coding required
+                  - generic [ref=e140]:
+                    - img [ref=e142]
+                    - generic [ref=e145]: Native to ServiceNow Platform
+              - generic [ref=e146]:
+                - generic [ref=e147]:
+                  - textbox "For example, I want to create..." [ref=e152]
+                  - button "Create" [disabled] [ref=e155]:
+                    - generic [ref=e156]:
+                      - img [ref=e158]
+                      - generic [ref=e160]: Create
+                - generic [ref=e162]:
+                  - button "Learning Platform Integration" [ref=e164] [cursor=pointer]:
+                    - generic [ref=e165]:
+                      - img [ref=e167]
+                      - generic [ref=e169]: Learning Platform Integration
+                  - button "Freight Brokerage and Carrier Management" [ref=e171] [cursor=pointer]:
+                    - generic [ref=e172]:
+                      - img [ref=e174]
+                      - generic [ref=e176]: Freight Brokerage and Carrier Management
+                  - button "Staff Rotation" [ref=e178] [cursor=pointer]:
+                    - generic [ref=e179]:
+                      - img [ref=e181]
+                      - generic [ref=e183]: Staff Rotation
+            - generic [ref=e186]:
+              - heading "Try detailed, ready-to-use app patterns" [level=2] [ref=e188]
+              - button "View app gallery" [ref=e191] [cursor=pointer]:
+                - generic [ref=e193]: View app gallery
+          - generic [ref=e197]:
+            - generic [ref=e199]:
+              - img [ref=e201]
+              - generic [ref=e204]:
+                - heading "Start building" [level=5] [ref=e205]
+                - paragraph [ref=e206]: Get your personal developer instance and explore the latest platform features
+              - generic [ref=e207]:
+                - button "Request your instance" [ref=e209] [cursor=pointer]:
+                  - generic [ref=e211]: Request your instance
+                - button "Learn about PDIs" [ref=e213] [cursor=pointer]:
+                  - generic [ref=e215]: Learn about PDIs
+            - generic [ref=e217]:
+              - img [ref=e219]
+              - generic [ref=e221]:
+                - heading "Your learnings" [level=5] [ref=e222]
+                - paragraph [ref=e223]: Start learning by browsing through our learning content designed for the ServiceNow platform
+              - generic [ref=e224]:
+                - button "Explore learning" [ref=e226] [cursor=pointer]:
+                  - generic [ref=e228]: Explore learning
+                - button "Browse courses" [ref=e230] [cursor=pointer]:
+                  - generic [ref=e232]: Browse courses
+        - generic [ref=e235]:
+          - generic [ref=e236]:
+            - heading "Choose a learning plan to start" [level=2] [ref=e237]
+            - paragraph [ref=e238]: Start your ServiceNow development journey with foundational concepts
+          - generic [ref=e239]:
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - img [ref=e244]
+                - generic [ref=e246]: New to ServiceNow
+              - generic [ref=e250]: Learning Path
+              - generic [ref=e251]:
+                - link "Enable professional developers to build applications on the Now Platform." [ref=e252] [cursor=pointer]:
+                  - /url: /learn/learning-plans/australia/new_to_servicenow
+                  - heading "Enable professional developers to build applications on the Now Platform." [level=3] [ref=e253]
+                - link "Start Learning" [ref=e254] [cursor=pointer]:
+                  - /url: /learn/learning-plans/australia/new_to_servicenow
+                  - text: Start Learning
+                  - img [ref=e256]
+            - generic [ref=e259]:
+              - generic [ref=e260]:
+                - img [ref=e262]
+                - generic [ref=e264]: Citizen Developer
+              - generic [ref=e268]: Learning Path
+              - generic [ref=e269]:
+                - link "Enable citizen developer to build applications with App Engine Studio." [ref=e270] [cursor=pointer]:
+                  - /url: /learn/learning-plans/australia/citizen_developer
+                  - heading "Enable citizen developer to build applications with App Engine Studio." [level=3] [ref=e271]
+                - link "Start Learning" [ref=e272] [cursor=pointer]:
+                  - /url: /learn/learning-plans/australia/citizen_developer
+                  - text: Start Learning
+                  - img [ref=e274]
+        - generic [ref=e276]:
+          - generic [ref=e277]:
+            - heading "What’s New" [level=2] [ref=e278]
+            - paragraph [ref=e279]: Get hands-on with the ServiceNow Platform, explore new tools early, and connect with developers solving real-world problems.
+          - list [ref=e280]:
+            - generic "ServiceNow Developer Advocates AMA" [ref=e281]:
+              - generic [ref=e282]:
+                - img "ServiceNow Developer Advocates AMA" [ref=e283]
+                - generic [ref=e284]:
+                  - generic [ref=e285]: ServiceNow Developer Advocates AMA
+                  - generic [ref=e286]: Join our Developer Advocates for insightful dicussions about the ServiceNow AI Platform, career growth, and the community
+                  - link "Learn More" [ref=e287] [cursor=pointer]:
+                    - /url: https://devlink.sn/DevAdvDevSiteAMACard
+                    - text: Learn More
+                    - img [ref=e289]
+            - generic "Break Point Podcast" [ref=e291]:
+              - generic [ref=e292]:
+                - img "Break Point Podcast" [ref=e293]
+                - generic [ref=e294]:
+                  - generic [ref=e295]: Break Point Podcast
+                  - generic [ref=e296]: "Welcome to Break Point: the ServiceNow Developer Podcast!"
+                  - link "Learn More" [ref=e297] [cursor=pointer]:
+                    - /url: https://devlink.sn/DevSiteBreakPoint
+                    - text: Learn More
+                    - img [ref=e299]
+            - generic "TechNow" [ref=e301]:
+              - generic [ref=e302]:
+                - img "TechNow" [ref=e303]
+                - generic [ref=e304]:
+                  - generic [ref=e305]: TechNow
+                  - generic [ref=e306]: Be the first to explore the hottest new ServiceNow AI platform features
+                  - link "Learn More" [ref=e307] [cursor=pointer]:
+                    - /url: https://devlink.sn/ZeroinZurichDevsite
+                    - text: Learn More
+                    - img [ref=e309]
+            - generic "The Update Set" [ref=e311]:
+              - generic [ref=e312]:
+                - img "The Update Set" [ref=e313]
+                - generic [ref=e314]:
+                  - generic [ref=e315]: The Update Set
+                  - generic [ref=e316]: Official news cast of ServiceNow Community News bringing you all the latest updates from the ServiceNow Community
+                  - link "Learn More" [ref=e317] [cursor=pointer]:
+                    - /url: https://devlink.sn/DevSiteUpdateSet
+                    - text: Learn More
+                    - img [ref=e319]
+        - generic [ref=e323]:
+          - generic [ref=e324]:
+            - heading "APIs and Libraries" [level=2] [ref=e325]
+            - paragraph [ref=e326]: Find the reference materials you need to build on the Now Platform
+            - button "Learn more" [ref=e328] [cursor=pointer]:
+              - generic [ref=e330]: Learn more
+          - generic [ref=e331]:
+            - generic "REST" [ref=e332]:
+              - link "APIs REST Web service APIs for integration" [ref=e333] [cursor=pointer]:
+                - /url: reference/api/australia/rest
+                - generic [ref=e337]: APIs
+                - generic [ref=e338]:
+                  - heading "REST" [level=3] [ref=e339]
+                  - paragraph [ref=e341]: Web service APIs for integration
+            - generic "Client" [ref=e342]:
+              - link "APIs Client APIs available to leverage in classic client scripting" [ref=e343] [cursor=pointer]:
+                - /url: reference/api/australia/client
+                - generic [ref=e347]: APIs
+                - generic [ref=e348]:
+                  - heading "Client" [level=3] [ref=e349]
+                  - paragraph [ref=e351]: APIs available to leverage in classic client scripting
+            - generic "Client Next Experience" [ref=e352]:
+              - link "APIs Client Next Experience Client APIs compatible with the Next Experience UI" [ref=e353] [cursor=pointer]:
+                - /url: reference/api/zurich/client_next_experience
+                - generic [ref=e357]: APIs
+                - generic [ref=e358]:
+                  - heading "Client Next Experience" [level=3] [ref=e359]
+                  - paragraph [ref=e361]: Client APIs compatible with the Next Experience UI
+            - generic "Client Mobile" [ref=e362]:
+              - link "APIs Client Mobile API framework for building legacy mobile experiences" [ref=e363] [cursor=pointer]:
+                - /url: reference/api/zurich/client_mobile
+                - generic [ref=e367]: APIs
+                - generic [ref=e368]:
+                  - heading "Client Mobile" [level=3] [ref=e369]
+                  - paragraph [ref=e371]: API framework for building legacy mobile experiences
+            - generic "Server Global" [ref=e372]:
+              - link "APIs Server Global Functionality APIs for legacy applications" [ref=e373] [cursor=pointer]:
+                - /url: reference/api/australia/server_legacy
+                - generic [ref=e377]: APIs
+                - generic [ref=e378]:
+                  - heading "Server Global" [level=3] [ref=e379]
+                  - paragraph [ref=e381]: Functionality APIs for legacy applications
+            - generic "Server Scoped" [ref=e382]:
+              - link "APIs Server Scoped Functions for scoped application development" [ref=e383] [cursor=pointer]:
+                - /url: reference/api/australia/server
+                - generic [ref=e387]: APIs
+                - generic [ref=e388]:
+                  - heading "Server Scoped" [level=3] [ref=e389]
+                  - paragraph [ref=e391]: Functions for scoped application development
+        - generic [ref=e392]:
+          - generic [ref=e393]:
+            - generic [ref=e394]: ServiceNow Community
+            - button "Stay connected" [ref=e396] [cursor=pointer]:
+              - generic [ref=e398]: Stay connected
+          - generic [ref=e399]:
+            - link "Follow the ServiceNow Community Follow the ServiceNow Community" [ref=e400] [cursor=pointer]:
+              - img "Follow the ServiceNow Community" [ref=e402]
+              - generic [ref=e403]: Follow the ServiceNow Community
+            - link "Subscribe to the Dev Program Channel Subscribe to the Dev Program Channel" [ref=e404] [cursor=pointer]:
+              - img "Subscribe to the Dev Program Channel" [ref=e406]
+              - generic [ref=e407]: Subscribe to the Dev Program Channel
+            - link "Developer Advocate Blog Developer Advocate Blog" [ref=e408] [cursor=pointer]:
+              - img "Developer Advocate Blog" [ref=e410]
+              - generic [ref=e411]: Developer Advocate Blog
+            - link "Attend Developer Meetups Attend Developer Meetups" [ref=e412] [cursor=pointer]:
+              - img "Attend Developer Meetups" [ref=e414]
+              - generic [ref=e415]: Attend Developer Meetups
+    - contentinfo [ref=e26]:
+      - contentinfo [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - img "ServiceNow Logo" [ref=e30]:
+              - img "ServiceNow Logo" [ref=e31]
+            - complementary "The world works with ServiceNow" [ref=e33]:
+              - img "The world works with ServiceNow" [ref=e34]
+          - navigation [ref=e35]:
+            - list [ref=e36]:
+              - listitem [ref=e37]:
+                - link "Terms and conditions" [ref=e38] [cursor=pointer]:
+                  - /url: http://www.servicenow.com/terms-of-use.html
+              - listitem [ref=e39]:
+                - link "Privacy statement" [ref=e40] [cursor=pointer]:
+                  - /url: https://www.servicenow.com/privacy-statement.html
+              - listitem [ref=e41]:
+                - link "GDPR" [ref=e42] [cursor=pointer]:
+                  - /url: https://www.servicenow.com/company/trust/gdpr.html
+              - listitem [ref=e43]:
+                - link "Cookie policy" [ref=e44] [cursor=pointer]:
+                  - /url: https://www.servicenow.com/cookie-policy.html
+              - listitem [ref=e45]:
+                - link "Cookie preferences" [ref=e46] [cursor=pointer]:
+                  - /url: "#"
+        - generic [ref=e47]:
+          - group "Social Links" [ref=e48]:
+            - link "linkedin" [ref=e49] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/servicenow
+              - img "linkedin" [ref=e50]
+            - link "twitter" [ref=e51] [cursor=pointer]:
+              - /url: https://twitter.com/servicenow
+              - img "twitter" [ref=e52]
+            - link "youtube" [ref=e53] [cursor=pointer]:
+              - /url: https://www.youtube.com/ServiceNowDevProgram
+              - img "youtube" [ref=e54]
+            - link "facebook" [ref=e55] [cursor=pointer]:
+              - /url: https://www.facebook.com/servicenow
+              - img "facebook" [ref=e56]
+            - link "instagram" [ref=e57] [cursor=pointer]:
+              - /url: https://www.instagram.com/servicenow/
+              - img "instagram" [ref=e58]
+          - contentinfo [ref=e59]: ©2026 ServiceNow. All rights reserved.

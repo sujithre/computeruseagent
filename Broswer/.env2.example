@@ -1,0 +1,18 @@
+# Computer Use Agent Environment Variables
+# Copy this file to .env or add these variables to your existing .env file
+
+# Azure AI Foundry Project Endpoint (same as browser automation)
+# PROJECT_ENDPOINT=https://your-project.api.azureml.ms
+
+# Computer Use Model Deployment Name
+# The deployment name for a model that supports Computer Use
+# Find this in Models + Endpoints in the Foundry portal
+COMPUTER_USE_MODEL_DEPLOYMENT_NAME=computer-use-preview
+
+# Computer Use Environment
+# The type of environment: windows, mac, linux, or browser
+COMPUTER_USE_ENVIRONMENT=windows
+
+# Display dimensions (optional - can also be set in code)
+# COMPUTER_USE_DISPLAY_WIDTH=1920
+# COMPUTER_USE_DISPLAY_HEIGHT=1080

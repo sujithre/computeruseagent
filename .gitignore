@@ -1,0 +1,38 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env2.example
+*.key
+*.pem
+
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Playwright / MCP
+.playwright-mcp/
+node_modules/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Build / dist
+dist/
+build/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
