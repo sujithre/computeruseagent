@@ -311,7 +311,27 @@ class PlaywrightEnvironment:
     def start(self, url: Optional[str] = None):
         """Start the browser and optionally navigate to a URL."""
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=self.headless)
+        # Prefer an already-installed system browser (Chrome/Edge) so we don't
+        # need to download Playwright's bundled Chromium. Falls back to the
+        # bundled Chromium if no system channel is available.
+        launch_error: Optional[Exception] = None
+        for channel in ("chrome", "msedge", None):
+            try:
+                if channel:
+                    self.browser = self.playwright.chromium.launch(
+                        headless=self.headless, channel=channel
+                    )
+                else:
+                    self.browser = self.playwright.chromium.launch(headless=self.headless)
+                break
+            except Exception as exc:  # noqa: BLE001 - try next channel
+                launch_error = exc
+                self.browser = None
+        if self.browser is None:
+            raise RuntimeError(
+                "Could not launch a browser. Install Google Chrome/Edge, or run "
+                "'playwright install chromium' when you have network access."
+            ) from launch_error
         self.page = self.browser.new_page(viewport={"width": self.width, "height": self.height})
         
         if url:
