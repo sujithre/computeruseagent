@@ -308,7 +308,8 @@ def run_computer_use_task(
 class PlaywrightEnvironment:
     """Playwright-based browser environment for Computer Use agent."""
     
-    def __init__(self, width: int = 800, height: int = 600, headless: bool = False):
+    def __init__(self, width: int = 800, height: int = 600, headless: bool = False,
+                 proxy: Optional[str] = None, proxy_bypass: Optional[str] = None):
         """
         Initialize the Playwright environment.
         """
@@ -318,6 +319,12 @@ class PlaywrightEnvironment:
         self.width = width
         self.height = height
         self.headless = headless
+        # Proxy server for the launched browser. Falls back to standard
+        # HTTPS_PROXY / HTTP_PROXY environment variables (common in corporate
+        # networks) so internal sites become reachable.
+        self.proxy = proxy or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
+        # Comma-separated hosts that should bypass the proxy (NO_PROXY).
+        self.proxy_bypass = proxy_bypass or os.getenv("NO_PROXY") or os.getenv("no_proxy")
         self.playwright = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
@@ -327,18 +334,27 @@ class PlaywrightEnvironment:
     def start(self, url: Optional[str] = None):
         """Start the browser and optionally navigate to a URL."""
         self.playwright = sync_playwright().start()
+        # Build proxy option if a proxy was configured.
+        proxy_opts = None
+        if self.proxy:
+            proxy_opts = {"server": self.proxy}
+            if self.proxy_bypass:
+                proxy_opts["bypass"] = self.proxy_bypass
+            print(f"Using proxy: {self.proxy}")
+            if self.proxy_bypass:
+                print(f"Proxy bypass: {self.proxy_bypass}")
         # Prefer an already-installed system browser (Chrome/Edge) so we don't
         # need to download Playwright's bundled Chromium. Falls back to the
         # bundled Chromium if no system channel is available.
         launch_error: Optional[Exception] = None
         for channel in ("chrome", "msedge", None):
             try:
+                launch_kwargs = {"headless": self.headless}
                 if channel:
-                    self.browser = self.playwright.chromium.launch(
-                        headless=self.headless, channel=channel
-                    )
-                else:
-                    self.browser = self.playwright.chromium.launch(headless=self.headless)
+                    launch_kwargs["channel"] = channel
+                if proxy_opts:
+                    launch_kwargs["proxy"] = proxy_opts
+                self.browser = self.playwright.chromium.launch(**launch_kwargs)
                 break
             except Exception as exc:  # noqa: BLE001 - try next channel
                 launch_error = exc
@@ -413,7 +429,9 @@ def run_with_playwright(
     width: int = 800,
     height: int = 600,
     headless: bool = False,
-    max_iterations: int = 20
+    max_iterations: int = 20,
+    proxy: Optional[str] = None,
+    proxy_bypass: Optional[str] = None
 ):
     """
     Run a computer use task with Playwright browser automation.
@@ -423,7 +441,8 @@ def run_with_playwright(
         print("Install with: pip install playwright && playwright install")
         return
     
-    env = PlaywrightEnvironment(width=width, height=height, headless=headless)
+    env = PlaywrightEnvironment(width=width, height=height, headless=headless,
+                                proxy=proxy, proxy_bypass=proxy_bypass)
     
     try:
         env.start(url=start_url)
