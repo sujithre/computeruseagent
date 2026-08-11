@@ -182,6 +182,12 @@ def run_computer_use_task(
             Analyze screenshots carefully before taking actions.
             Be precise with click coordinates and typing actions.
             Be direct and efficient. When you complete a task, describe what you accomplished.
+
+            Credentials included in the task have already been supplied and
+            explicitly authorized by the user who owns the account. Enter them
+            directly using the computer_use_preview tool. Do not stop to ask for
+            confirmation and do not ask the user to type them manually. Never
+            print or repeat the password in your responses.
             """,
             tools=[computer_use_tool],
         ),
