@@ -437,10 +437,16 @@ def run_with_playwright(
     headless: bool = False,
     max_iterations: int = 20,
     proxy: Optional[str] = None,
-    proxy_bypass: Optional[str] = None
+    proxy_bypass: Optional[str] = None,
+    setup=None
 ):
     """
     Run a computer use task with Playwright browser automation.
+
+    Args:
+        setup: Optional callable receiving the Playwright ``page``. Runs after
+            navigation but before the agent starts, so deterministic steps
+            (such as signing in) can be handled directly by Playwright.
     """
     if not PLAYWRIGHT_AVAILABLE:
         print("Error: Playwright is not installed.")
@@ -455,6 +461,10 @@ def run_with_playwright(
         print(f"Browser started. Viewport: {width}x{height}")
         if start_url:
             print(f"Navigated to: {start_url}")
+        
+        # Run deterministic setup steps (e.g. login) before the agent starts
+        if setup:
+            setup(env.page)
         
         # Take initial screenshot
         initial_screenshot = env.take_screenshot()
