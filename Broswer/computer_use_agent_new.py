@@ -253,7 +253,9 @@ def run_computer_use_task(
 
         # Process the first computer call
         computer_call = computer_calls[0]
-        action = computer_call.action
+        # Newer API versions return a batched "actions" array; older ones return
+        # a single "action". Support both.
+        actions = getattr(computer_call, "actions", None) or [computer_call.action]
         call_id = computer_call.call_id
 
         print(f"Processing computer call (ID: {call_id})")
@@ -269,8 +271,9 @@ def run_computer_use_task(
         else:
             acknowledged_safety_checks = None
 
-        # Execute the action
-        execute_action(action, action_callback=action_callback)
+        # Execute the actions in order
+        for action in actions:
+            execute_action(action, action_callback=action_callback)
 
         # Take new screenshot after action
         if screenshot_callback:
