@@ -54,15 +54,19 @@ except ImportError:
     print("Warning: Playwright not installed. Install with: pip install playwright && playwright install")
 
 
-def image_to_base64(image_path: str, target_width: int = 800, target_height: int = 600, quality: int = 70) -> str:
+def image_to_base64(image_path: str, target_width: int = 800, target_height: int = 600,
+                    quality: int = 70, max_base64_kb: int = 45) -> str:
     """
     Convert an image file to a Base64-encoded string, resized to exact dimensions.
-    
+
     Args:
         image_path: Path to the image file
         target_width: Target width to resize to
         target_height: Target height to resize to  
         quality: JPEG quality (1-100, lower = smaller file)
+        max_base64_kb: Reduce quality until the Base64 payload fits this size.
+            Follow-up turns fail with "Uri string is too long" above roughly
+            50 KB, so keep screenshots comfortably under that.
     """
     if not os.path.isfile(image_path):
         raise FileNotFoundError(f"File not found at: {image_path}")
@@ -77,18 +81,43 @@ def image_to_base64(image_path: str, target_width: int = 800, target_height: int
             # Resize to exact target dimensions
             img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
             
-            # Save to bytes as JPEG with compression
-            buffer = io.BytesIO()
-            img.save(buffer, format='JPEG', quality=quality, optimize=True)
-            file_data = buffer.getvalue()
-            base64_str = base64.b64encode(file_data).decode("utf-8")
-            print(f"    Image: {len(file_data) / 1024:.1f} KB, base64: {len(base64_str) / 1024:.1f} KB")
+            # Step the quality down until the encoded payload is small enough
+            current_quality = quality
+            while True:
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=current_quality, optimize=True)
+                file_data = buffer.getvalue()
+                base64_str = base64.b64encode(file_data).decode("utf-8")
+                if len(base64_str) / 1024 <= max_base64_kb or current_quality <= 15:
+                    break
+                current_quality = max(15, current_quality - 15)
+            print(f"    Image: {len(file_data) / 1024:.1f} KB, base64: {len(base64_str) / 1024:.1f} KB "
+                  f"(quality {current_quality})")
         return base64_str
     else:
         # Fallback: read file directly (no compression)
         with open(image_path, "rb") as image_file:
             file_data = image_file.read()
         return base64.b64encode(file_data).decode("utf-8")
+
+
+# Map the key names the model uses onto Playwright key names.
+_KEY_ALIASES = {
+    "ENTER": "Enter",
+    "RETURN": "Enter",
+    "TAB": "Tab",
+    "ESC": "Escape",
+    "ESCAPE": "Escape",
+    "SPACE": " ",
+    "BACKSPACE": "Backspace",
+    "DELETE": "Delete",
+    "ARROWUP": "ArrowUp",
+    "ARROWDOWN": "ArrowDown",
+    "ARROWLEFT": "ArrowLeft",
+    "ARROWRIGHT": "ArrowRight",
+    "CTRL": "Control",
+    "CMD": "Meta",
+}
 
 
 def execute_action(action, action_callback=None):
@@ -127,6 +156,11 @@ def execute_action(action, action_callback=None):
     
     elif action_type == "key":
         print(f"  Key press: {action.key}")
+        if action_callback:
+            action_callback(action)
+    
+    elif action_type == "keypress":
+        print(f"  Key press: {getattr(action, 'keys', None)}")
         if action_callback:
             action_callback(action)
     
@@ -220,7 +254,7 @@ def run_computer_use_task(
     # Two supported ways to invoke Computer Use. They are mutually exclusive:
     #   agent  - tools declared on a Foundry agent, referenced per request
     #   direct - tools passed on each request against the model deployment
-    mode = os.getenv("COMPUTER_USE_MODE", "agent").lower()
+    mode = os.getenv("COMPUTER_USE_MODE", "direct").lower()
     print(f"Computer Use mode: {mode}")
 
     agent = None
@@ -243,12 +277,17 @@ def run_computer_use_task(
         request_kwargs = {
             "extra_body": {"agent_reference": {"name": agent.name, "type": "agent_reference"}},
         }
+        base_kwargs = dict(request_kwargs)
         prompt_text = user_message
     else:
-        request_kwargs = {
+        base_kwargs = {
             "model": config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
             "tools": [computer_tool_payload],
         }
+        # With the default tool_choice of "auto" this deployment replies with
+        # chat messages describing actions and never emits computer_call items.
+        # Forcing tool use is what makes it actually drive the screen.
+        request_kwargs = {**base_kwargs, "tool_choice": "required"}
         prompt_text = f"{agent_instructions}\n\n{user_message}"
 
     # Initial request with screenshot.
@@ -283,6 +322,9 @@ def run_computer_use_task(
 
     # Process iterations
     iteration = 0
+    last_signature = None
+    repeat_count = 0
+    pending_output = None
     while True:
         if iteration >= max_iterations:
             print(f"\nReached maximum iterations ({max_iterations}). Stopping.")
@@ -329,6 +371,16 @@ def run_computer_use_task(
         for action in actions:
             execute_action(action, action_callback=action_callback)
 
+        # Forced tool use means the model can never signal completion, so track
+        # whether it keeps repeating the same action with no effect.
+        signature = str([(a.type, getattr(a, "x", None), getattr(a, "y", None),
+                         getattr(a, "text", None)) for a in actions])
+        if signature == last_signature:
+            repeat_count += 1
+        else:
+            repeat_count = 0
+            last_signature = signature
+
         # Take new screenshot after action
         if screenshot_callback:
             new_screenshot_path = screenshot_callback()
@@ -355,6 +407,11 @@ def run_computer_use_task(
                 for check in acknowledged_safety_checks
             ]
 
+        if repeat_count >= 3:
+            print("\nSame action repeated with no progress. Stopping.")
+            pending_output = computer_call_output
+            break
+
         # Send next request with updated screenshot
         response = openai.responses.create(
             previous_response_id=response.id,
@@ -364,6 +421,36 @@ def run_computer_use_task(
         )
 
         print(f"Response received (ID: {response.id})")
+        pending_output = None
+
+    # Ask for a closing summary without forcing tool use, so the model can
+    # answer in text instead of issuing another action.
+    try:
+        summary_input = []
+        if pending_output:
+            summary_input.append(pending_output)
+        summary_input.append({
+            "role": "user",
+            "content": [{
+                "type": "input_text",
+                "text": "Stop interacting with the screen. Describe what you "
+                        "accomplished and what is currently displayed.",
+            }],
+        })
+        summary = openai.responses.create(
+            previous_response_id=response.id,
+            input=summary_input,
+            truncation="auto",
+            **base_kwargs,
+        )
+        print("\nFinal summary:")
+        for item in summary.output:
+            if item.type == "message":
+                for content in item.content:
+                    if hasattr(content, "text"):
+                        print(f"  Agent: {content.text}")
+    except Exception as exc:  # noqa: BLE001 - summary is best effort
+        print(f"\nCould not get summary: {exc}")
 
     # Clean up the agent version if one was created
     if agent is not None:
@@ -494,6 +581,17 @@ class PlaywrightEnvironment:
             key = action.key
             self.page.keyboard.press(key)
             time.sleep(0.3)
+        
+        elif action_type == "keypress":
+            # The model returns a list of key names, e.g. ["ENTER"]
+            for key in getattr(action, "keys", None) or []:
+                self.page.keyboard.press(_KEY_ALIASES.get(key.upper(), key))
+                time.sleep(0.2)
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            time.sleep(1.0)
     
     def __enter__(self):
         return self
