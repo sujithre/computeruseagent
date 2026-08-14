@@ -185,8 +185,24 @@ def run_computer_use_task(
               "computer-use-preview deployment; other models will describe actions but never "
               "perform them.")
 
-    # Get OpenAI client for Responses API
-    openai = project.get_openai_client()
+    # Get OpenAI client for Responses API.
+    # The Computer Use tool is documented against the direct Azure OpenAI v1
+    # endpoint. Set AZURE_OPENAI_ENDPOINT (e.g. https://<resource>.openai.azure.com)
+    # to use it instead of the Foundry project client.
+    azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    if azure_openai_endpoint:
+        from openai import OpenAI
+        from azure.identity import get_bearer_token_provider
+
+        base_url = azure_openai_endpoint.rstrip("/") + "/openai/v1/"
+        token_provider = get_bearer_token_provider(
+            _get_credential(), "https://ai.azure.com/.default"
+        )
+        openai = OpenAI(base_url=base_url, api_key=token_provider)
+        print(f"Using Azure OpenAI endpoint: {base_url}")
+    else:
+        openai = project.get_openai_client()
+        print("Using Foundry project OpenAI client")
 
     # Prepare initial screenshot
     image_base64 = image_to_base64(initial_screenshot_path, target_width=display_width, target_height=display_height)
