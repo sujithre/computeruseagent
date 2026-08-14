@@ -193,6 +193,12 @@ def run_computer_use_task(
         description="Computer automation agent with screen interaction capabilities.",
     )
     print(f"Agent created (id: {agent.id}, name: {agent.name}, version: {agent.version})")
+    print(f"Computer Use model deployment: {config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME}")
+    if config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME == config.MODEL_DEPLOYMENT_NAME:
+        print("  Warning: COMPUTER_USE_MODEL_DEPLOYMENT_NAME is not set separately, so it "
+              "fell back to MODEL_DEPLOYMENT_NAME. The Computer Use tool only works with a "
+              "computer-use-preview deployment; other models will describe actions but never "
+              "perform them.")
 
     # Get OpenAI client for Responses API
     openai = project.get_openai_client()
