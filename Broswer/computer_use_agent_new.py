@@ -278,6 +278,7 @@ def run_computer_use_task(
             "extra_body": {"agent_reference": {"name": agent.name, "type": "agent_reference"}},
         }
         base_kwargs = dict(request_kwargs)
+        first_kwargs = dict(request_kwargs)
         prompt_text = user_message
     else:
         base_kwargs = {
@@ -286,8 +287,10 @@ def run_computer_use_task(
         }
         # With the default tool_choice of "auto" this deployment replies with
         # chat messages describing actions and never emits computer_call items.
-        # Forcing tool use is what makes it actually drive the screen.
-        request_kwargs = {**base_kwargs, "tool_choice": "required"}
+        # Force tool use for the opening turn to get the loop started, then
+        # fall back to "auto" so the model can stop when the task is done.
+        first_kwargs = {**base_kwargs, "tool_choice": "required"}
+        request_kwargs = base_kwargs
         prompt_text = f"{agent_instructions}\n\n{user_message}"
 
     # Initial request with screenshot.
@@ -312,7 +315,7 @@ def run_computer_use_task(
             }
         ],
         truncation="auto",
-        **request_kwargs,
+        **first_kwargs,
     )
     print(f"Initial response received (ID: {response.id})")
     try:
@@ -326,10 +329,6 @@ def run_computer_use_task(
     repeat_count = 0
     pending_output = None
     while True:
-        if iteration >= max_iterations:
-            print(f"\nReached maximum iterations ({max_iterations}). Stopping.")
-            break
-
         iteration += 1
         print(f"\n--- Iteration {iteration} ---")
 
@@ -412,16 +411,69 @@ def run_computer_use_task(
             pending_output = computer_call_output
             break
 
-        # Send next request with updated screenshot
-        response = openai.responses.create(
-            previous_response_id=response.id,
-            input=[computer_call_output],
-            truncation="auto",
-            **request_kwargs,
-        )
+        if iteration >= max_iterations:
+            print(f"\nReached maximum iterations ({max_iterations}). Stopping.")
+            pending_output = computer_call_output
+            break
+
+        # Forcing tool use is the only way this deployment acts, but then it can
+        # never stop and starts inventing extra work. So only offer it the
+        # chance to finish when it is idling (waiting or just re-screenshotting),
+        # which is what it does once the real work is done.
+        idling = all(getattr(a, "type", None) in ("wait", "screenshot") for a in actions)
+
+        if idling:
+            response = openai.responses.create(
+                previous_response_id=response.id,
+                input=[
+                    computer_call_output,
+                    {
+                        "role": "user",
+                        "content": [{
+                            "type": "input_text",
+                            "text": "Reply with exactly TASK COMPLETE only if every step of "
+                                    "the task has been carried out and you can see the result "
+                                    "on screen. Otherwise carry out the next action.",
+                        }],
+                    },
+                ],
+                truncation="auto",
+                **base_kwargs,
+            )
+            pending_output = None
+
+            if not [i for i in response.output if i.type == "computer_call"]:
+                text = " ".join(
+                    content.text
+                    for item in response.output if item.type == "message"
+                    for content in item.content if hasattr(content, "text")
+                )
+                if "TASK COMPLETE" in text.upper():
+                    print("\nAgent reported the task is complete.")
+                    break
+                # Narrating rather than acting - force the next action.
+                response = openai.responses.create(
+                    previous_response_id=response.id,
+                    input=[{
+                        "role": "user",
+                        "content": [{
+                            "type": "input_text",
+                            "text": "Carry out the next action now.",
+                        }],
+                    }],
+                    truncation="auto",
+                    **first_kwargs,
+                )
+        else:
+            response = openai.responses.create(
+                previous_response_id=response.id,
+                input=[computer_call_output],
+                truncation="auto",
+                **first_kwargs,
+            )
+            pending_output = None
 
         print(f"Response received (ID: {response.id})")
-        pending_output = None
 
     # Ask for a closing summary without forcing tool use, so the model can
     # answer in text instead of issuing another action.
