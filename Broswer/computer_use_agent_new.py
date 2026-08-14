@@ -217,6 +217,40 @@ def run_computer_use_task(
         "environment": environment,
     }
 
+    # Two supported ways to invoke Computer Use. They are mutually exclusive:
+    #   agent  - tools declared on a Foundry agent, referenced per request
+    #   direct - tools passed on each request against the model deployment
+    mode = os.getenv("COMPUTER_USE_MODE", "agent").lower()
+    print(f"Computer Use mode: {mode}")
+
+    agent = None
+    if mode == "agent":
+        computer_use_tool = ComputerUsePreviewTool(
+            display_width=display_width,
+            display_height=display_height,
+            environment=environment,
+        )
+        agent = project.agents.create_version(
+            agent_name="ComputerUseAgent",
+            definition=PromptAgentDefinition(
+                model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
+                instructions=agent_instructions,
+                tools=[computer_use_tool],
+            ),
+            description="Computer automation agent with screen interaction capabilities.",
+        )
+        print(f"Agent created (id: {agent.id}, name: {agent.name}, version: {agent.version})")
+        request_kwargs = {
+            "extra_body": {"agent_reference": {"name": agent.name, "type": "agent_reference"}},
+        }
+        prompt_text = user_message
+    else:
+        request_kwargs = {
+            "model": config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
+            "tools": [computer_tool_payload],
+        }
+        prompt_text = f"{agent_instructions}\n\n{user_message}"
+
     # Initial request with screenshot.
     # Note: no "instructions" parameter here. Supplying it puts the model into
     # a chat/assistant mode where it narrates actions as messages instead of
@@ -228,7 +262,7 @@ def run_computer_use_task(
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"{agent_instructions}\n\n{user_message}",
+                        "text": prompt_text,
                     },
                     {
                         "type": "input_image",
@@ -238,11 +272,9 @@ def run_computer_use_task(
                 ],
             }
         ],
-        tools=[computer_tool_payload],
-        model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
         truncation="auto",
+        **request_kwargs,
     )
-
     print(f"Initial response received (ID: {response.id})")
     try:
         print(f"Tools registered on response: {[t.type for t in response.tools]}")
@@ -327,12 +359,19 @@ def run_computer_use_task(
         response = openai.responses.create(
             previous_response_id=response.id,
             input=[computer_call_output],
-            tools=[computer_tool_payload],
-            model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
             truncation="auto",
+            **request_kwargs,
         )
 
         print(f"Response received (ID: {response.id})")
+
+    # Clean up the agent version if one was created
+    if agent is not None:
+        try:
+            project.agents.delete_version(agent_name=agent.name, agent_version=agent.version)
+            print("\nAgent deleted")
+        except Exception as exc:  # noqa: BLE001 - cleanup is best effort
+            print(f"\nCould not delete agent: {exc}")
 
 
 class PlaywrightEnvironment:
