@@ -217,7 +217,10 @@ def run_computer_use_task(
         "environment": environment,
     }
 
-    # Initial request with screenshot
+    # Initial request with screenshot.
+    # Note: no "instructions" parameter here. Supplying it puts the model into
+    # a chat/assistant mode where it narrates actions as messages instead of
+    # emitting computer_call items. Guidance goes in the user message instead.
     response = openai.responses.create(
         input=[
             {
@@ -225,7 +228,7 @@ def run_computer_use_task(
                 "content": [
                     {
                         "type": "input_text",
-                        "text": user_message,
+                        "text": f"{agent_instructions}\n\n{user_message}",
                     },
                     {
                         "type": "input_image",
@@ -237,7 +240,6 @@ def run_computer_use_task(
         ],
         tools=[computer_tool_payload],
         model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
-        instructions=agent_instructions,
         truncation="auto",
     )
 
@@ -327,7 +329,6 @@ def run_computer_use_task(
             input=[computer_call_output],
             tools=[computer_tool_payload],
             model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
-            instructions=agent_instructions,
             truncation="auto",
         )
 
