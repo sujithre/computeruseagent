@@ -236,7 +236,6 @@ def run_computer_use_task(
             }
         ],
         tools=[computer_tool_payload],
-        tool_choice={"type": "computer_use_preview"},
         model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
         instructions=agent_instructions,
         truncation="auto",
