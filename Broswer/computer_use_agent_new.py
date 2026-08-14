@@ -207,6 +207,15 @@ def run_computer_use_task(
     image_base64 = image_to_base64(initial_screenshot_path, target_width=display_width, target_height=display_height)
     image_url = f"data:image/jpeg;base64,{image_base64}"
 
+    # The Responses API needs the tool on every request. Declaring it only on
+    # the agent definition leaves the model unable to emit computer_call items.
+    computer_tool_payload = {
+        "type": "computer_use_preview",
+        "display_width": display_width,
+        "display_height": display_height,
+        "environment": environment,
+    }
+
     # Initial request with screenshot
     response = openai.responses.create(
         input=[
@@ -225,6 +234,7 @@ def run_computer_use_task(
                 ],
             }
         ],
+        tools=[computer_tool_payload],
         extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
         truncation="auto",
     )
@@ -243,6 +253,7 @@ def run_computer_use_task(
 
         # Check for computer calls in the response
         computer_calls = [item for item in response.output if item.type == "computer_call"]
+        print(f"Response items: {[item.type for item in response.output]}")
 
         if not computer_calls:
             # No more computer calls - print final output and break
@@ -305,6 +316,7 @@ def run_computer_use_task(
         response = openai.responses.create(
             previous_response_id=response.id,
             input=[computer_call_output],
+            tools=[computer_tool_payload],
             extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
             truncation="auto",
         )
