@@ -220,12 +220,17 @@ def run_computer_use_task(
             }
         ],
         tools=[computer_tool_payload],
+        tool_choice={"type": "computer_use_preview"},
         model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
         instructions=agent_instructions,
         truncation="auto",
     )
 
     print(f"Initial response received (ID: {response.id})")
+    try:
+        print(f"Tools registered on response: {[t.type for t in response.tools]}")
+    except Exception:
+        pass
 
     # Process iterations
     iteration = 0
