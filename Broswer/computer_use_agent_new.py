@@ -164,36 +164,21 @@ def run_computer_use_task(
     # Get environment type (windows, mac, linux, browser)
     environment = config.COMPUTER_USE_ENVIRONMENT
 
-    # Initialize Computer Use tool with display dimensions
-    computer_use_tool = ComputerUsePreviewTool(
-        display_width=display_width,
-        display_height=display_height,
-        environment=environment
-    )
+    agent_instructions = """
+    You are a computer automation assistant.
+    Use the computer_use_preview tool to interact with the screen when needed.
+    Analyze screenshots carefully before taking actions.
+    Be precise with click coordinates and typing actions.
+    Be direct and efficient. When you complete a task, describe what you accomplished.
 
-    # Create a versioned agent with the Computer Use tool
-    agent = project.agents.create_version(
-        agent_name="ComputerUseAgent",
-        definition=PromptAgentDefinition(
-            model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
-            instructions="""
-            You are a computer automation assistant.
-            Use the computer_use_preview tool to interact with the screen when needed.
-            Analyze screenshots carefully before taking actions.
-            Be precise with click coordinates and typing actions.
-            Be direct and efficient. When you complete a task, describe what you accomplished.
+    Never claim a step succeeded unless the latest screenshot visibly
+    shows it. If the screen looks unchanged after a click, the click
+    missed: re-examine the screenshot, aim at the centre of the target
+    element, and click again.
+    """
 
-            Never claim a step succeeded unless the latest screenshot visibly
-            shows it. If the screen looks unchanged after a click, the click
-            missed: re-examine the screenshot, aim at the centre of the target
-            element, and click again.
-            """,
-            tools=[computer_use_tool],
-        ),
-        description="Computer automation agent with screen interaction capabilities.",
-    )
-    print(f"Agent created (id: {agent.id}, name: {agent.name}, version: {agent.version})")
     print(f"Computer Use model deployment: {config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME}")
+    print(f"Computer Use environment: {environment}")
     if config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME == config.MODEL_DEPLOYMENT_NAME:
         print("  Warning: COMPUTER_USE_MODEL_DEPLOYMENT_NAME is not set separately, so it "
               "fell back to MODEL_DEPLOYMENT_NAME. The Computer Use tool only works with a "
@@ -235,7 +220,8 @@ def run_computer_use_task(
             }
         ],
         tools=[computer_tool_payload],
-        extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
+        model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
+        instructions=agent_instructions,
         truncation="auto",
     )
 
@@ -317,15 +303,12 @@ def run_computer_use_task(
             previous_response_id=response.id,
             input=[computer_call_output],
             tools=[computer_tool_payload],
-            extra_body={"agent_reference": {"name": agent.name, "type": "agent_reference"}},
+            model=config.COMPUTER_USE_MODEL_DEPLOYMENT_NAME,
+            instructions=agent_instructions,
             truncation="auto",
         )
 
         print(f"Response received (ID: {response.id})")
-
-    # Clean up - delete the agent version
-    project.agents.delete_version(agent_name=agent.name, agent_version=agent.version)
-    print("\nAgent deleted")
 
 
 class PlaywrightEnvironment:
