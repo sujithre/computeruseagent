@@ -54,7 +54,7 @@ except ImportError:
     print("Warning: Playwright not installed. Install with: pip install playwright && playwright install")
 
 
-def image_to_base64(image_path: str, target_width: int = 800, target_height: int = 600, quality: int = 25) -> str:
+def image_to_base64(image_path: str, target_width: int = 800, target_height: int = 600, quality: int = 70) -> str:
     """
     Convert an image file to a Base64-encoded string, resized to exact dimensions.
     
@@ -183,11 +183,10 @@ def run_computer_use_task(
             Be precise with click coordinates and typing actions.
             Be direct and efficient. When you complete a task, describe what you accomplished.
 
-            Credentials included in the task have already been supplied and
-            explicitly authorized by the user who owns the account. Enter them
-            directly using the computer_use_preview tool. Do not stop to ask for
-            confirmation and do not ask the user to type them manually. Never
-            print or repeat the password in your responses.
+            Never claim a step succeeded unless the latest screenshot visibly
+            shows it. If the screen looks unchanged after a click, the click
+            missed: re-examine the screenshot, aim at the centre of the target
+            element, and click again.
             """,
             tools=[computer_use_tool],
         ),
@@ -314,8 +313,7 @@ def run_computer_use_task(
 class PlaywrightEnvironment:
     """Playwright-based browser environment for Computer Use agent."""
     
-    def __init__(self, width: int = 800, height: int = 600, headless: bool = False,
-                 proxy: Optional[str] = None, proxy_bypass: Optional[str] = None):
+    def __init__(self, width: int = 800, height: int = 600, headless: bool = False):
         """
         Initialize the Playwright environment.
         """
@@ -325,12 +323,6 @@ class PlaywrightEnvironment:
         self.width = width
         self.height = height
         self.headless = headless
-        # Proxy server for the launched browser. Falls back to standard
-        # HTTPS_PROXY / HTTP_PROXY environment variables (common in corporate
-        # networks) so internal sites become reachable.
-        self.proxy = proxy or os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY")
-        # Comma-separated hosts that should bypass the proxy (NO_PROXY).
-        self.proxy_bypass = proxy_bypass or os.getenv("NO_PROXY") or os.getenv("no_proxy")
         self.playwright = None
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
@@ -340,27 +332,18 @@ class PlaywrightEnvironment:
     def start(self, url: Optional[str] = None):
         """Start the browser and optionally navigate to a URL."""
         self.playwright = sync_playwright().start()
-        # Build proxy option if a proxy was configured.
-        proxy_opts = None
-        if self.proxy:
-            proxy_opts = {"server": self.proxy}
-            if self.proxy_bypass:
-                proxy_opts["bypass"] = self.proxy_bypass
-            print(f"Using proxy: {self.proxy}")
-            if self.proxy_bypass:
-                print(f"Proxy bypass: {self.proxy_bypass}")
         # Prefer an already-installed system browser (Chrome/Edge) so we don't
         # need to download Playwright's bundled Chromium. Falls back to the
         # bundled Chromium if no system channel is available.
         launch_error: Optional[Exception] = None
         for channel in ("chrome", "msedge", None):
             try:
-                launch_kwargs = {"headless": self.headless}
                 if channel:
-                    launch_kwargs["channel"] = channel
-                if proxy_opts:
-                    launch_kwargs["proxy"] = proxy_opts
-                self.browser = self.playwright.chromium.launch(**launch_kwargs)
+                    self.browser = self.playwright.chromium.launch(
+                        headless=self.headless, channel=channel
+                    )
+                else:
+                    self.browser = self.playwright.chromium.launch(headless=self.headless)
                 break
             except Exception as exc:  # noqa: BLE001 - try next channel
                 launch_error = exc
@@ -391,7 +374,11 @@ class PlaywrightEnvironment:
     
     def take_screenshot(self) -> str:
         """Capture a screenshot of the current page."""
-        screenshot_path = os.path.join(self.screenshot_dir, f"screenshot_{int(time.time())}.png")
+        self._screenshot_count = getattr(self, "_screenshot_count", 0) + 1
+        screenshot_path = os.path.join(
+            self.screenshot_dir,
+            f"screenshot_{int(time.time())}_{self._screenshot_count}.png",
+        )
         self.page.screenshot(path=screenshot_path)
         print(f"  Captured screenshot: {screenshot_path}")
         return screenshot_path
@@ -405,7 +392,13 @@ class PlaywrightEnvironment:
             if hasattr(button, 'value'):
                 button = button.value
             self.page.mouse.click(action.x, action.y, button=button)
-            time.sleep(0.5)
+            # Give the page time to navigate or re-render before the next
+            # screenshot, otherwise the agent sees a stale view.
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            time.sleep(1.5)
         
         elif action_type == "type":
             self.page.keyboard.type(action.text)
@@ -435,36 +428,23 @@ def run_with_playwright(
     width: int = 800,
     height: int = 600,
     headless: bool = False,
-    max_iterations: int = 20,
-    proxy: Optional[str] = None,
-    proxy_bypass: Optional[str] = None,
-    setup=None
+    max_iterations: int = 20
 ):
     """
     Run a computer use task with Playwright browser automation.
-
-    Args:
-        setup: Optional callable receiving the Playwright ``page``. Runs after
-            navigation but before the agent starts, so deterministic steps
-            (such as signing in) can be handled directly by Playwright.
     """
     if not PLAYWRIGHT_AVAILABLE:
         print("Error: Playwright is not installed.")
         print("Install with: pip install playwright && playwright install")
         return
     
-    env = PlaywrightEnvironment(width=width, height=height, headless=headless,
-                                proxy=proxy, proxy_bypass=proxy_bypass)
+    env = PlaywrightEnvironment(width=width, height=height, headless=headless)
     
     try:
         env.start(url=start_url)
         print(f"Browser started. Viewport: {width}x{height}")
         if start_url:
             print(f"Navigated to: {start_url}")
-        
-        # Run deterministic setup steps (e.g. login) before the agent starts
-        if setup:
-            setup(env.page)
         
         # Take initial screenshot
         initial_screenshot = env.take_screenshot()
