@@ -26,6 +26,10 @@ test-results/
 blob-report/
 playwright/.cache/
 
+# Captured run screenshots (may contain signed-in portal data)
+Broswer/assets/
+screenshots/
+
 # Build / dist
 dist/
 build/

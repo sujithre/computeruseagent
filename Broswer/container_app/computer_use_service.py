@@ -44,7 +44,8 @@ class ComputerUseService:
         width: int = 1280,
         height: int = 800,
         save_screenshots: bool = True,
-        task_id: Optional[str] = None
+        task_id: Optional[str] = None,
+        max_steps: int = 20
     ):
         """
         Initialize the Computer Use service.
@@ -54,11 +55,13 @@ class ComputerUseService:
             height: Browser viewport height.
             save_screenshots: Whether to save screenshots.
             task_id: Unique task ID for organizing screenshots.
+            max_steps: Maximum agent tool-call iterations before the run is stopped.
         """
         self.width = width
         self.height = height
         self.save_screenshots = save_screenshots
         self.task_id = task_id or str(int(time.time()))
+        self.max_steps = max_steps
         
         self.project_endpoint = os.environ.get("PROJECT_ENDPOINT")
         self.model_name = os.environ.get("COMPUTER_USE_MODEL_DEPLOYMENT_NAME", 
@@ -237,13 +240,96 @@ class ComputerUseService:
             await self.page.mouse.wheel(action.scroll_x, action.scroll_y)
             await asyncio.sleep(0.3)
     
-    async def run_task(self, task: str, start_url: Optional[str] = None) -> Dict[str, Any]:
+    async def _first_visible(self, scope, selectors: List[str]):
+        """Return the first selector in the list that resolves to a visible element."""
+        for selector in selectors:
+            if not selector:
+                continue
+            try:
+                locator = scope.locator(selector).first
+                await locator.wait_for(state="visible", timeout=5000)
+                return locator
+            except Exception:
+                continue
+        return None
+    
+    async def _find_in_frames(self, selectors: List[str]):
+        """Search the main frame and every child frame for the first visible match."""
+        for scope in [self.page] + list(self.page.frames):
+            found = await self._first_visible(scope, selectors)
+            if found is not None:
+                return found
+        return None
+    
+    async def _type_into(self, field, value: str):
+        """Click, clear, and type a value with real keystrokes."""
+        await field.click()
+        try:
+            await field.fill("")
+        except Exception:
+            pass
+        await field.type(value, delay=60)
+    
+    async def _login(self, credentials: Dict[str, Any]):
+        """Sign in with Playwright so credentials never reach the model or screenshots."""
+        username = credentials.get("username")
+        password = credentials.get("password")
+        if not username or not password:
+            raise ValueError("Login requires both a username and a password")
+        
+        await self.page.wait_for_load_state("domcontentloaded")
+        
+        user_field = await self._find_in_frames([
+            credentials.get("username_selector"),
+            "#userid",
+            "input[name='userid']",
+            "input[name='username']",
+            "input[type='email']",
+            "input[type='text']:visible",
+        ])
+        pass_field = await self._find_in_frames([
+            credentials.get("password_selector"),
+            "#password",
+            "input[name='password']",
+            "input[type='password']:visible",
+        ])
+        
+        if user_field is None or pass_field is None:
+            raise RuntimeError("Could not locate the sign in fields on the page")
+        
+        await self._type_into(user_field, username)
+        await self._type_into(pass_field, password)
+        
+        submit = await self._find_in_frames([
+            credentials.get("submit_selector"),
+            "#btnActiveLogin",
+            "button[type='submit']",
+            "input[type='submit']",
+        ])
+        if submit is not None:
+            await submit.click()
+        else:
+            await pass_field.press("Enter")
+        
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=30000)
+        except Exception:
+            pass
+        print(f"Signed in. Current page: {self.page.url}")
+    
+    async def run_task(
+        self,
+        task: str,
+        start_url: Optional[str] = None,
+        credentials: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Run a computer use task (async).
         
         Args:
             task: The task description for the computer use agent.
             start_url: Optional URL to navigate to before starting.
+            credentials: Optional sign-in details applied before the agent takes over.
             
         Returns:
             Dictionary containing the result and screenshot paths.
@@ -257,6 +343,9 @@ class ComputerUseService:
         try:
             # Start browser
             await self._start_browser(url=start_url)
+            
+            if credentials:
+                await self._login(credentials)
             
             # Take initial screenshot
             initial_screenshot_path, initial_screenshot_base64 = await self._take_screenshot()
@@ -313,7 +402,7 @@ class ComputerUseService:
                     run = agents_client.runs.create(thread_id=thread.id, agent_id=agent.id)
                     
                     # Process the run loop
-                    max_iterations = 20
+                    max_iterations = self.max_steps
                     iteration = 0
                     
                     while run.status in ["queued", "in_progress", "requires_action"] and iteration < max_iterations:

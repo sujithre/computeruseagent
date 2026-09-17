@@ -8,10 +8,11 @@ This FastAPI application provides two endpoints:
 Deploy to Azure Container Apps for serverless scaling.
 """
 import os
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+import secrets
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import Optional, List, Any
+from pydantic import BaseModel, Field
+from typing import Optional, List, Any, Dict
 import uuid
 from datetime import datetime
 
@@ -26,6 +27,43 @@ app = FastAPI(
 
 # In-memory task storage (use Redis/Cosmos DB in production)
 tasks = {}
+
+
+def require_api_key(x_api_key: Optional[str] = Header(default=None)):
+    """Reject calls without the shared API key; the endpoints drive a real browser session."""
+    expected = os.environ.get("API_KEY")
+    if not expected:
+        raise HTTPException(status_code=503, detail="API_KEY is not configured on the server")
+    if not x_api_key or not secrets.compare_digest(x_api_key, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key header")
+
+
+class LoginCredentials(BaseModel):
+    """Sign-in details applied with Playwright before the agent starts."""
+    username: Optional[str] = None
+    password: Optional[str] = None
+    # Prefer these: the values are read from container app settings / Key Vault references.
+    username_env: Optional[str] = None
+    password_env: Optional[str] = None
+    username_selector: Optional[str] = None
+    password_selector: Optional[str] = None
+    submit_selector: Optional[str] = None
+
+    def resolve(self) -> Dict[str, Any]:
+        username = self.username or (os.environ.get(self.username_env) if self.username_env else None)
+        password = self.password or (os.environ.get(self.password_env) if self.password_env else None)
+        if not username or not password:
+            raise HTTPException(
+                status_code=400,
+                detail="Login requires username/password or username_env/password_env that resolve to values"
+            )
+        return {
+            "username": username,
+            "password": password,
+            "username_selector": self.username_selector,
+            "password_selector": self.password_selector,
+            "submit_selector": self.submit_selector,
+        }
 
 
 class BrowserAutomationRequest(BaseModel):
@@ -48,14 +86,28 @@ class ComputerUseRequest(BaseModel):
     width: int = 1280
     height: int = 800
     save_screenshots: bool = True
+    max_steps: int = Field(default=20, ge=1, le=100)
+    login: Optional[LoginCredentials] = None
     
     class Config:
         json_schema_extra = {
             "example": {
-                "task": "Find the email input field and type 'user@example.com'",
-                "url": "https://example.com/login",
+                "url": "https://identity.example.com/home",
+                "task": (
+                    "Steps:\n"
+                    "1. Look at the tiles on the home page\n"
+                    "2. Find the \"My Access\" tile\n"
+                    "3. Click on the \"My Access\" tile\n"
+                    "4. Confirm you have reached the \"My Access\" page\n\n"
+                    "Report what you see on the final page."
+                ),
+                "login": {
+                    "username_env": "PORTAL_USERNAME",
+                    "password_env": "PORTAL_PASSWORD"
+                },
                 "width": 1280,
                 "height": 800,
+                "max_steps": 20,
                 "save_screenshots": True
             }
         }
@@ -100,7 +152,7 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.post("/api/browser-automation", response_model=TaskResponse)
+@app.post("/api/browser-automation", response_model=TaskResponse, dependencies=[Depends(require_api_key)])
 async def browser_automation(request: BrowserAutomationRequest, background_tasks: BackgroundTasks):
     """
     Execute a browser automation task using Azure's managed Playwright Workspaces.
@@ -142,7 +194,7 @@ async def browser_automation(request: BrowserAutomationRequest, background_tasks
     )
 
 
-@app.post("/api/computer-use", response_model=TaskResponse)
+@app.post("/api/computer-use", response_model=TaskResponse, dependencies=[Depends(require_api_key)])
 async def computer_use(request: ComputerUseRequest, background_tasks: BackgroundTasks):
     """
     Execute a computer use task with local Playwright and screenshot capture.
@@ -157,12 +209,17 @@ async def computer_use(request: ComputerUseRequest, background_tasks: Background
     - Tasks requiring visual verification
     """
     task_id = str(uuid.uuid4())
+    credentials = request.login.resolve() if request.login else None
+    
+    # Keep credentials out of the stored request payload.
+    stored_request = request.model_dump(exclude={"login"})
+    stored_request["login"] = bool(credentials)
     
     tasks[task_id] = {
         "task_id": task_id,
         "type": "computer_use",
         "status": "queued",
-        "request": request.model_dump(),
+        "request": stored_request,
         "result": None,
         "error": None,
         "screenshots": [],
@@ -178,7 +235,9 @@ async def computer_use(request: ComputerUseRequest, background_tasks: Background
         request.url,
         request.width,
         request.height,
-        request.save_screenshots
+        request.save_screenshots,
+        request.max_steps,
+        credentials
     )
     
     return TaskResponse(
@@ -188,7 +247,7 @@ async def computer_use(request: ComputerUseRequest, background_tasks: Background
     )
 
 
-@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse)
+@app.get("/api/tasks/{task_id}", response_model=TaskStatusResponse, dependencies=[Depends(require_api_key)])
 async def get_task_status(task_id: str):
     """Get the status and result of a task."""
     if task_id not in tasks:
@@ -206,7 +265,7 @@ async def get_task_status(task_id: str):
     )
 
 
-@app.get("/api/tasks")
+@app.get("/api/tasks", dependencies=[Depends(require_api_key)])
 async def list_tasks(limit: int = 10):
     """List recent tasks."""
     sorted_tasks = sorted(
@@ -242,7 +301,9 @@ async def run_computer_use_task(
     url: Optional[str],
     width: int,
     height: int,
-    save_screenshots: bool
+    save_screenshots: bool,
+    max_steps: int,
+    credentials: Optional[Dict[str, Any]]
 ):
     """Background task for computer use."""
     try:
@@ -252,10 +313,11 @@ async def run_computer_use_task(
             width=width,
             height=height,
             save_screenshots=save_screenshots,
-            task_id=task_id
+            task_id=task_id,
+            max_steps=max_steps
         )
         # Await the async run_task method
-        result = await service.run_task(task, start_url=url)
+        result = await service.run_task(task, start_url=url, credentials=credentials)
         
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["result"] = result.get("result")
@@ -270,4 +332,4 @@ async def run_computer_use_task(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
