@@ -87,6 +87,8 @@ class ComputerUseRequest(BaseModel):
     height: int = 800
     save_screenshots: bool = True
     max_steps: int = Field(default=20, ge=1, le=100)
+    # Only for internal sites whose certificates chain to a private corporate CA.
+    ignore_https_errors: Optional[bool] = None
     login: Optional[LoginCredentials] = None
     
     class Config:
@@ -237,7 +239,8 @@ async def computer_use(request: ComputerUseRequest, background_tasks: Background
         request.height,
         request.save_screenshots,
         request.max_steps,
-        credentials
+        credentials,
+        request.ignore_https_errors
     )
     
     return TaskResponse(
@@ -303,7 +306,8 @@ async def run_computer_use_task(
     height: int,
     save_screenshots: bool,
     max_steps: int,
-    credentials: Optional[Dict[str, Any]]
+    credentials: Optional[Dict[str, Any]],
+    ignore_https_errors: Optional[bool]
 ):
     """Background task for computer use."""
     try:
@@ -314,7 +318,8 @@ async def run_computer_use_task(
             height=height,
             save_screenshots=save_screenshots,
             task_id=task_id,
-            max_steps=max_steps
+            max_steps=max_steps,
+            ignore_https_errors=ignore_https_errors
         )
         # Await the async run_task method
         result = await service.run_task(task, start_url=url, credentials=credentials)

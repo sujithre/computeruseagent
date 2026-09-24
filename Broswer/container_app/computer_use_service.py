@@ -45,7 +45,8 @@ class ComputerUseService:
         height: int = 800,
         save_screenshots: bool = True,
         task_id: Optional[str] = None,
-        max_steps: int = 20
+        max_steps: int = 20,
+        ignore_https_errors: Optional[bool] = None
     ):
         """
         Initialize the Computer Use service.
@@ -56,12 +57,16 @@ class ComputerUseService:
             save_screenshots: Whether to save screenshots.
             task_id: Unique task ID for organizing screenshots.
             max_steps: Maximum agent tool-call iterations before the run is stopped.
+            ignore_https_errors: Accept certificates that do not chain to a public CA.
         """
         self.width = width
         self.height = height
         self.save_screenshots = save_screenshots
         self.task_id = task_id or str(int(time.time()))
         self.max_steps = max_steps
+        if ignore_https_errors is None:
+            ignore_https_errors = os.environ.get("IGNORE_HTTPS_ERRORS", "").lower() == "true"
+        self.ignore_https_errors = ignore_https_errors
         
         self.project_endpoint = os.environ.get("PROJECT_ENDPOINT")
         self.model_name = os.environ.get("COMPUTER_USE_MODEL_DEPLOYMENT_NAME", 
@@ -120,12 +125,39 @@ class ComputerUseService:
     async def _start_browser(self, url: Optional[str] = None):
         """Start the Playwright browser (async)."""
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=True)  # Always headless in container
-        self.page = await self.browser.new_page(viewport={"width": self.width, "height": self.height})
+        launch_args: Dict[str, Any] = {"headless": True}  # Always headless in container
+        proxy = self._proxy_settings()
+        if proxy:
+            launch_args["proxy"] = proxy
+            print(f"Browser using proxy: {proxy['server']}")
+        self.browser = await self.playwright.chromium.launch(**launch_args)
+        context = await self.browser.new_context(
+            viewport={"width": self.width, "height": self.height},
+            ignore_https_errors=self.ignore_https_errors,
+        )
+        self.page = await context.new_page()
         
         if url:
             await self.page.goto(url)
             await self.page.wait_for_load_state("networkidle")
+    
+    def _proxy_settings(self) -> Optional[Dict[str, Any]]:
+        """Build Playwright proxy config; the browser does not inherit container proxy vars."""
+        server = (
+            os.environ.get("BROWSER_PROXY_SERVER")
+            or os.environ.get("HTTPS_PROXY")
+            or os.environ.get("HTTP_PROXY")
+        )
+        if not server:
+            return None
+        
+        proxy: Dict[str, Any] = {"server": server}
+        bypass = os.environ.get("BROWSER_PROXY_BYPASS") or os.environ.get("NO_PROXY")
+        if bypass:
+            # Playwright expects ".domain.com" rather than the "*.domain.com" used by NO_PROXY.
+            entries = [e.strip().lstrip("*") for e in bypass.split(",") if e.strip()]
+            proxy["bypass"] = ",".join(entries)
+        return proxy
     
     async def _stop_browser(self):
         """Stop the Playwright browser (async)."""
