@@ -126,6 +126,9 @@ class ComputerUseService:
         """Start the Playwright browser (async)."""
         self.playwright = await async_playwright().start()
         launch_args: Dict[str, Any] = {"headless": True}  # Always headless in container
+        if self.ignore_https_errors:
+            # Context-level ignoreHTTPSErrors is overridden by HSTS; the launch flag is not.
+            launch_args["args"] = ["--ignore-certificate-errors"]
         proxy = self._proxy_settings()
         if proxy:
             launch_args["proxy"] = proxy
