@@ -125,6 +125,7 @@ class ComputerUseService:
     async def _start_browser(self, url: Optional[str] = None):
         """Start the Playwright browser (async)."""
         self.playwright = await async_playwright().start()
+        print(f"Starting browser with ignore_https_errors={self.ignore_https_errors}")
         launch_args: Dict[str, Any] = {"headless": True}  # Always headless in container
         if self.ignore_https_errors:
             # Context-level ignoreHTTPSErrors is overridden by HSTS; the launch flag is not.
