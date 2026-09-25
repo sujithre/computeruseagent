@@ -25,6 +25,16 @@ install_corporate_ca() {
     done
     rm -f /tmp/corp-ca-*.pem
 
+    # Python HTTP libraries use certifi's bundle, not the system store.
+    certifi_bundle=$(python -c "import certifi; print(certifi.where())" 2>/dev/null || true)
+    if [ -n "$certifi_bundle" ] && [ -f "$certifi_bundle" ]; then
+        cat "$bundle" >> "$certifi_bundle"
+        echo "Corporate CA appended to certifi bundle at $certifi_bundle"
+    fi
+
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+
     echo "Corporate CA certificates installed"
 }
 
