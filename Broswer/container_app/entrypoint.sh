@@ -18,12 +18,21 @@ install_corporate_ca() {
     mkdir -p /root/.pki/nssdb
     certutil -d sql:/root/.pki/nssdb -N --empty-password 2>/dev/null || true
 
-    rm -f /tmp/corp-ca-*.pem
-    csplit -sz -f /tmp/corp-ca- -b '%02d.pem' "$bundle" '/-----BEGIN CERTIFICATE-----/' '{*}'
+    rm -f /tmp/corp-ca-*
+    awk '/-----BEGIN CERTIFICATE-----/{n++} n>0{print > sprintf("/tmp/corp-ca-%02d.pem", n)}' "$bundle"
     for cert in /tmp/corp-ca-*.pem; do
-        certutil -d sql:/root/.pki/nssdb -A -t "C,," -n "$(basename "$cert" .pem)" -i "$cert"
+        [ -s "$cert" ] || continue
+        if openssl x509 -in "$cert" -outform DER -out "$cert.der" 2>/dev/null; then
+            if certutil -d sql:/root/.pki/nssdb -A -t "C,," -n "$(basename "$cert" .pem)" -i "$cert.der"; then
+                echo "  trusted $(openssl x509 -in "$cert" -noout -subject)"
+            else
+                echo "  could not add to NSS store: $cert"
+            fi
+        else
+            echo "  skipping malformed certificate block: $cert"
+        fi
     done
-    rm -f /tmp/corp-ca-*.pem
+    rm -f /tmp/corp-ca-*
 
     # Python HTTP libraries use certifi's bundle, not the system store.
     certifi_bundle=$(python -c "import certifi; print(certifi.where())" 2>/dev/null || true)
