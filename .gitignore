@@ -40,3 +40,6 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+
+# Corporate CA material is supplied at runtime, never committed
+*.crt
