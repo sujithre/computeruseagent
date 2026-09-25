@@ -268,6 +268,33 @@ async def get_task_status(task_id: str):
     )
 
 
+@app.get("/api/diagnostics", dependencies=[Depends(require_api_key)])
+async def diagnostics():
+    """Report the container's certificate trust state for troubleshooting."""
+    import subprocess
+
+    bundle = "/usr/local/share/ca-certificates/corp-ca.crt"
+    nss_certs = []
+    try:
+        output = subprocess.run(
+            ["certutil", "-L", "-d", "sql:/root/.pki/nssdb"],
+            capture_output=True, text=True, timeout=10
+        )
+        nss_certs = [line.split("  ")[0].strip() for line in output.stdout.splitlines()[4:] if line.strip()]
+    except Exception as e:
+        nss_certs = [f"unavailable: {e}"]
+
+    return {
+        "corp_ca_env_present": bool(os.environ.get("CORP_CA_B64")),
+        "corp_ca_env_length": len(os.environ.get("CORP_CA_B64", "")),
+        "ca_bundle_written": os.path.exists(bundle),
+        "ca_bundle_size": os.path.getsize(bundle) if os.path.exists(bundle) else 0,
+        "system_store_has_corp_ca": os.path.exists("/etc/ssl/certs/corp-ca.pem"),
+        "nss_trusted_certs": nss_certs,
+        "ignore_https_errors_default": os.environ.get("IGNORE_HTTPS_ERRORS", "not set"),
+    }
+
+
 @app.get("/api/tasks", dependencies=[Depends(require_api_key)])
 async def list_tasks(limit: int = 10):
     """List recent tasks."""
