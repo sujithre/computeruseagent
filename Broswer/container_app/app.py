@@ -295,6 +295,39 @@ async def diagnostics():
     }
 
 
+@app.get("/api/diagnostics/tls", dependencies=[Depends(require_api_key)])
+async def tls_chain(host: str, port: int = 443):
+    """Show the certificate chain the container is actually served for a host."""
+    import re
+    import subprocess
+
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,253}", host):
+        raise HTTPException(status_code=400, detail="Invalid host")
+
+    cmd = ["openssl", "s_client", "-showcerts", "-servername", host,
+           "-connect", f"{host}:{port}"]
+
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+    if proxy:
+        cmd += ["-proxy", proxy.replace("http://", "").replace("https://", "").rstrip("/")]
+
+    try:
+        completed = subprocess.run(cmd, input="", capture_output=True, text=True, timeout=30)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"openssl failed: {e}")
+
+    chain = [line.strip() for line in completed.stdout.splitlines()
+             if line.strip().startswith(("s:", "i:", "Verify return code", "depth="))]
+
+    return {
+        "host": host,
+        "via_proxy": proxy,
+        "chain": chain,
+        "pem": completed.stdout,
+        "stderr": completed.stderr[-2000:],
+    }
+
+
 @app.get("/api/tasks", dependencies=[Depends(require_api_key)])
 async def list_tasks(limit: int = 10):
     """List recent tasks."""
