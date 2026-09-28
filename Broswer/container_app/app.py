@@ -128,6 +128,7 @@ class TaskStatusResponse(BaseModel):
     status: str
     result: Optional[Any] = None  # Can be dict or str
     error: Optional[str] = None
+    traceback: Optional[str] = None
     screenshots: Optional[List[str]] = None
     created_at: str
     completed_at: Optional[str] = None
@@ -262,6 +263,7 @@ async def get_task_status(task_id: str):
         status=task["status"],
         result=task.get("result"),
         error=task.get("error"),
+        traceback=task.get("traceback"),
         screenshots=task.get("screenshots"),
         created_at=task["created_at"],
         completed_at=task.get("completed_at")
@@ -446,9 +448,16 @@ async def run_computer_use_task(
         tasks[task_id]["completed_at"] = datetime.utcnow().isoformat()
         
     except Exception as e:
+        import traceback
+
+        detail = f"{type(e).__name__}: {e}"
+        if e.__cause__:
+            detail += f" | cause: {type(e.__cause__).__name__}: {e.__cause__}"
         tasks[task_id]["status"] = "failed"
-        tasks[task_id]["error"] = str(e)
+        tasks[task_id]["error"] = detail
+        tasks[task_id]["traceback"] = traceback.format_exc()
         tasks[task_id]["completed_at"] = datetime.utcnow().isoformat()
+        print(f"Task {task_id} failed: {detail}\n{traceback.format_exc()}", flush=True)
 
 
 if __name__ == "__main__":
