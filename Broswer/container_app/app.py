@@ -336,6 +336,54 @@ async def tls_chain(host: str, port: int = 443, use_proxy: bool = True):
     }
 
 
+@app.get("/api/diagnostics/foundry", dependencies=[Depends(require_api_key)])
+async def foundry_reachability():
+    """Surface the real exception behind the OpenAI SDK's generic 'Connection error.'"""
+    import socket
+    import traceback
+    from urllib.parse import urlparse
+
+    import httpx
+
+    endpoint = os.environ.get("PROJECT_ENDPOINT", "")
+    host = urlparse(endpoint).hostname
+    if not host:
+        raise HTTPException(status_code=400, detail="PROJECT_ENDPOINT is not set")
+
+    try:
+        dns = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+        resolved = sorted({item[4][0] for item in dns})
+    except Exception as e:
+        resolved = f"{type(e).__name__}: {e}"
+
+    def probe(**client_kwargs):
+        try:
+            with httpx.Client(timeout=20.0, **client_kwargs) as client:
+                response = client.get(f"https://{host}/", follow_redirects=False)
+            return {"ok": True, "status": response.status_code}
+        except Exception as e:
+            return {
+                "ok": False,
+                "type": type(e).__name__,
+                "message": str(e),
+                "cause": repr(e.__cause__) if e.__cause__ else None,
+                "trace": traceback.format_exc()[-1500:],
+            }
+
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+
+    return {
+        "host": host,
+        "dns": resolved,
+        "proxy_env": proxy,
+        "no_proxy_env": os.environ.get("NO_PROXY"),
+        "ssl_cert_file": os.environ.get("SSL_CERT_FILE"),
+        "via_env_proxy": probe(trust_env=True),
+        "direct_no_proxy": probe(trust_env=False),
+        "explicit_proxy": probe(trust_env=False, proxy=proxy) if proxy else "no proxy configured",
+    }
+
+
 @app.get("/api/tasks", dependencies=[Depends(require_api_key)])
 async def list_tasks(limit: int = 10):
     """List recent tasks."""
