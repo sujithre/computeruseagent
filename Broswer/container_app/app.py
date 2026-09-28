@@ -296,7 +296,7 @@ async def diagnostics():
 
 
 @app.get("/api/diagnostics/tls", dependencies=[Depends(require_api_key)])
-async def tls_chain(host: str, port: int = 443):
+async def tls_chain(host: str, port: int = 443, use_proxy: bool = True):
     """Show the certificate chain the container is actually served for a host."""
     import re
     import subprocess
@@ -308,14 +308,20 @@ async def tls_chain(host: str, port: int = 443):
            "-connect", f"{host}:{port}"]
 
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
-    if proxy:
+    if proxy and use_proxy:
         cmd += ["-proxy", proxy.replace("http://", "").replace("https://", "").rstrip("/")]
+    else:
+        proxy = None
 
     try:
         completed = subprocess.run(cmd, input="", capture_output=True, text=True, timeout=30)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"openssl failed: {e}")
 
+    blocks = re.findall(
+        r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+        completed.stdout, re.S
+    )
     chain = [line.strip() for line in completed.stdout.splitlines()
              if line.strip().startswith(("s:", "i:", "Verify return code", "depth="))]
 
@@ -323,6 +329,8 @@ async def tls_chain(host: str, port: int = 443):
         "host": host,
         "via_proxy": proxy,
         "chain": chain,
+        # Issuers only; the leaf is not a CA and should not be trusted.
+        "ca_pem": "\n".join(blocks[1:]) + "\n" if len(blocks) > 1 else "",
         "pem": completed.stdout,
         "stderr": completed.stderr[-2000:],
     }
