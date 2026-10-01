@@ -136,6 +136,28 @@ class ComputerUseService:
             print(f"Warning: Failed to initialize blob storage: {e}")
             self.use_blob_storage = False
 
+    @staticmethod
+    def _openai_http_client():
+        """azure-ai-projects injects its own transport, which makes httpx ignore HTTPS_PROXY."""
+        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        if not proxy:
+            return None
+
+        try:
+            import httpx2 as httpx_lib  # the openai package vendors httpx under this name
+        except ImportError:
+            import httpx as httpx_lib
+
+        kwargs: Dict[str, Any] = {"timeout": httpx_lib.Timeout(180.0, connect=30.0)}
+        ca_bundle = os.environ.get("SSL_CERT_FILE")
+        if ca_bundle and os.path.exists(ca_bundle):
+            kwargs["verify"] = ca_bundle
+
+        try:
+            return httpx_lib.Client(proxy=proxy, **kwargs)
+        except TypeError:
+            return httpx_lib.Client(proxies=proxy, **kwargs)
+
     def _proxy_settings(self) -> Optional[Dict[str, Any]]:
         """Build Playwright proxy config; the browser does not inherit container proxy vars."""
         server = (
@@ -417,7 +439,7 @@ class ComputerUseService:
                 endpoint=self.project_endpoint,
                 credential=DefaultAzureCredential(),
             )
-            openai = project.get_openai_client()
+            openai = project.get_openai_client(http_client=self._openai_http_client())
 
             tool_payload = {
                 "type": "computer_use_preview",
